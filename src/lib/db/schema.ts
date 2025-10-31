@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, boolean, uuid, numeric } from "drizzle-orm/pg-core";
 
-/* ---------- USERS ---------- */
-export const users = pgTable("users", {
+/* ---------- AUTH USERS ---------- */
+export const users = pgTable("auth_users", {
   id: text("id").primaryKey(),
   name: text("name"),
   email: text("email").notNull().unique(),
@@ -14,26 +14,53 @@ export const users = pgTable("users", {
     .notNull(),
 });
 
-/* ---------- SESSIONS ---------- */
-export const sessions = pgTable("sessions", {
+/* ---------- AUTH SESSIONS ---------- */
+export const sessions = pgTable("auth_sessions", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+
+  // 🔹 Metadata Better Auth may log
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  location: text("location"),
+  device: text("device"),
+
+  // 🔹 Timestamps
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
 
-/* ---------- ACCOUNTS (Better Auth) ---------- */
-export const accounts = pgTable("accounts", {
-  id: text("id").primaryKey(),
+
+
+
+/* ---------- AUTH ACCOUNTS ---------- */
+export const accounts = pgTable("auth_accounts", {
+  id: text("id").primaryKey(), // ✅ matches DB
+  accountId: text("account_id").unique(),
   providerId: text("provider_id").notNull(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   password: text("password"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
 
-/* ---------- VERIFICATIONS ---------- */
-export const verifications = pgTable("verification", {
+
+
+
+/* ---------- AUTH VERIFICATIONS ---------- */
+export const verifications = pgTable("auth_verifications", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull().unique(),
@@ -52,7 +79,9 @@ export const journalEntries = pgTable("journal_entries", {
 /* ---------- JOURNAL LINES ---------- */
 export const journalLines = pgTable("journal_lines", {
   id: uuid("id").defaultRandom().primaryKey(),
-  journalId: uuid("journal_id").notNull().references(() => journalEntries.id),
+  journalId: uuid("journal_id")
+    .notNull()
+    .references(() => journalEntries.id),
   accountId: uuid("account_id").notNull(),
   debit: numeric("debit").default("0"),
   credit: numeric("credit").default("0"),

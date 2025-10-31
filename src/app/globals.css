@@ -40,8 +40,13 @@ a:hover {
   opacity: 0.85;
 }
 
-/* ---- Buttons ---- */
-button {
+/* =========================================================
+   ✅ BUTTONS — scoped to .btn classes (no global override)
+   ========================================================= */
+
+/* Base button (only applies when .btn is used) */
+.btn,
+button.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,26 +60,44 @@ button {
   line-height: 1.25rem;
   transition: all 0.25s ease-in-out;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
 }
 
-button:hover {
+.btn:hover,
+button.btn:hover {
   opacity: 0.92;
   filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
-.btn-primary {
+/* Primary (solid green) */
+.btn-primary,
+button.btn-primary {
   background-color: var(--accent);
   color: var(--background) !important;
 }
 
-.btn-outline {
+/* Outline (transparent background) */
+.btn-outline,
+button.btn-outline {
   background-color: transparent;
   border: 2px solid var(--accent);
   color: var(--accent);
 }
 
-.btn-outline:hover {
+.btn-outline:hover,
+button.btn-outline:hover {
   background-color: var(--accent);
   color: var(--background) !important;
+}
+
+/* =========================================================
+   ✅ RESET FOR UNSTYLED BUTTONS (e.g., hamburger icons)
+   ========================================================= */
+button:not(.btn):not(.btn-outline):not(.btn-primary) {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  box-shadow: none;
 }

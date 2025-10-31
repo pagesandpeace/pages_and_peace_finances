@@ -22,8 +22,12 @@ if (!globalForDb.pgPool) {
   });
 }
 
+// ✅ Correct drizzle call
 if (!globalForDb.db) {
-  globalForDb.db = drizzle(globalForDb.pgPool, { schema });
+  globalForDb.db = drizzle(globalForDb.pgPool, {
+    schema,
+    logger: true,
+  });
 }
 
 export const db = globalForDb.db!;
