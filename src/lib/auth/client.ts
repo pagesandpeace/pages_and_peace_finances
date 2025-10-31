@@ -1,5 +1,7 @@
 "use client";
-import { createClient } from "better-auth/react";
-import { auth } from "@/lib/auth/actions";
 
-export const authClient = createClient(auth);
+import { createAuthClient } from "better-auth/react";
+
+export const authClient = createAuthClient({
+  baseURL: typeof window !== "undefined" ? window.location.origin : "", // auto-detect host
+});
