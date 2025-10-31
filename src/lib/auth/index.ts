@@ -5,11 +5,6 @@ import * as schema from "@/lib/db/schema";
 import { v4 as uuidv4 } from "uuid";
 import { nextCookies } from "better-auth/next-js";
 
-/**
- * ✅ Better Auth configuration for Pages & Peace
- * Works locally and on Vercel with Supabase Postgres + Drizzle.
- */
-
 const BASE_URL =
   process.env.NODE_ENV === "production"
     ? "https://pagesandpeace.co.uk"
@@ -18,7 +13,6 @@ const BASE_URL =
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? BASE_URL,
 
-  /* ---------- Database (Drizzle + Supabase) ---------- */
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -29,13 +23,11 @@ export const auth = betterAuth({
     },
   }),
 
-  /* ---------- Auth Settings ---------- */
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // No resend → disable verification
+    requireEmailVerification: false, // ✅ Disable since no Resend
   },
 
-  /* ---------- Cookies ---------- */
   cookies: {
     sessionToken: {
       name: "auth_session",
@@ -44,18 +36,16 @@ export const auth = betterAuth({
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
       },
     },
   },
 
-  /* ---------- Advanced ---------- */
   advanced: {
     database: {
       generateId: () => uuidv4(),
     },
   },
 
-  /* ---------- Plugins ---------- */
   plugins: [nextCookies()],
 });

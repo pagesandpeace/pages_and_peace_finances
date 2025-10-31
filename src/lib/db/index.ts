@@ -16,9 +16,6 @@ const globalForDb = global as unknown as {
 };
 
 if (!globalForDb.pgPool) {
-  // 🩵 Supabase PgBouncer fix:
-  // Remove sslmode and pgbouncer params from the connection string
-  // because we handle SSL manually below.
   const cleanUrl = connectionString
     .replace("?pgbouncer=true&sslmode=require", "")
     .replace("&pgbouncer=true", "")
@@ -26,7 +23,7 @@ if (!globalForDb.pgPool) {
 
   globalForDb.pgPool = new Pool({
     connectionString: cleanUrl,
-    ssl: { rejectUnauthorized: false }, // ✅ Required for Supabase
+    ssl: { rejectUnauthorized: false },
   });
 }
 
