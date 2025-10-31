@@ -1,15 +1,40 @@
 "use client";
+
 import { useState } from "react";
 import Image from "next/image";
+import { signIn, signUp } from "@/lib/auth/actions";
 
 export default function SignInPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(`${mode} →`, { email, password });
+    setError("");
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
+
+      const result =
+        mode === "signin" ? await signIn(formData) : await signUp(formData);
+
+      if (result?.ok && result.redirectTo) {
+        window.location.href = result.redirectTo;
+      } else {
+        setError("Invalid credentials or unexpected response.");
+      }
+    } catch (err) {
+      console.error("❌ auth error", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,6 +65,7 @@ export default function SignInPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            required
           />
           <input
             type="password"
@@ -47,15 +73,24 @@ export default function SignInPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            required
           />
         </div>
 
-        <button type="submit" className="btn-primary w-full mt-4">
-          {mode === "signin" ? "Sign In" : "Sign Up"}
+        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+
+        <button type="submit" disabled={loading} className="btn-primary w-full mt-4">
+          {loading
+            ? "Processing..."
+            : mode === "signin"
+            ? "Sign In"
+            : "Sign Up"}
         </button>
 
         <p className="text-sm text-gray-700 mt-3">
-          {mode === "signin" ? "Don’t have an account?" : "Already have an account?"}{" "}
+          {mode === "signin"
+            ? "Don’t have an account?"
+            : "Already have an account?"}{" "}
           <span
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="text-accent cursor-pointer font-semibold"
