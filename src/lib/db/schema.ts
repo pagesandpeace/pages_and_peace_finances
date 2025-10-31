@@ -1,9 +1,9 @@
-import { pgTable, text, timestamp, boolean, uuid, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
-/* ---------- AUTH USERS ---------- */
-export const users = pgTable("auth_users", {
+/* ---------------- USERS ---------------- */
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
-  name: text("name"),
+  name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
@@ -14,22 +14,16 @@ export const users = pgTable("auth_users", {
     .notNull(),
 });
 
-/* ---------- AUTH SESSIONS ---------- */
-export const sessions = pgTable("auth_sessions", {
+/* ---------------- SESSIONS ---------------- */
+export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-
-  // 🔹 Metadata Better Auth may log
+  token: text("token").notNull().unique(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  location: text("location"),
-  device: text("device"),
-
-  // 🔹 Timestamps
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
@@ -37,17 +31,20 @@ export const sessions = pgTable("auth_sessions", {
     .notNull(),
 });
 
-
-
-
-/* ---------- AUTH ACCOUNTS ---------- */
-export const accounts = pgTable("auth_accounts", {
-  id: text("id").primaryKey(), // ✅ matches DB
-  accountId: text("account_id").unique(),
+/* ---------------- ACCOUNTS ---------------- */
+export const accounts = pgTable("accounts", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
   password: text("password"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -56,42 +53,15 @@ export const accounts = pgTable("auth_accounts", {
     .notNull(),
 });
 
-
-
-
-/* ---------- AUTH VERIFICATIONS ---------- */
-export const verifications = pgTable("auth_verifications", {
+/* ---------------- VERIFICATIONS ---------------- */
+export const verifications = pgTable("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-/* ---------- JOURNAL ENTRIES ---------- */
-export const journalEntries = pgTable("journal_entries", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  date: timestamp("date").notNull(),
-  description: text("description").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-/* ---------- JOURNAL LINES ---------- */
-export const journalLines = pgTable("journal_lines", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  journalId: uuid("journal_id")
-    .notNull()
-    .references(() => journalEntries.id),
-  accountId: uuid("account_id").notNull(),
-  debit: numeric("debit").default("0"),
-  credit: numeric("credit").default("0"),
-});
-
-/* ---------- LEDGER ACCOUNTS ---------- */
-export const ledgerAccounts = pgTable("ledger_accounts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  type: text("type").notNull(), // Asset / Liability / Equity / Income / Expense
-  code: text("code").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });

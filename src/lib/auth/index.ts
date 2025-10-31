@@ -1,148 +1,112 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createClient } from "@supabase/supabase-js";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { v4 as uuidv4 } from "uuid";
+import { nextCookies } from "better-auth/next-js";
+import { Resend } from "resend";
 
 /**
  * ✅ Better Auth configuration for Pages & Peace
- * - Local: uses Drizzle/Postgres adapter
- * - Vercel: uses Supabase HTTPS adapter
- * - Prevents ENOTFOUND + adapter init errors
+ * Works locally and on Vercel with Supabase Postgres + Drizzle.
  */
 
-// ---------- Supabase HTTPS client ----------
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// ---------- Local Drizzle DB ----------
-let db: any = null;
+const BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://pagesandpeace.co.uk"
+    : "http://localhost:3000";
 
-if (process.env.NODE_ENV === "development") {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString)
-    throw new Error("❌ DATABASE_URL not defined in development.");
-
-  const cleanUrl = connectionString
-    .replace("?pgbouncer=true&sslmode=require", "")
-    .replace("&pgbouncer=true", "")
-    .replace("?sslmode=require", "");
-
-  const pool = new Pool({
-    connectionString: cleanUrl,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  db = drizzle(pool, { schema });
-}
-
-// ---------- Build adapter ----------
-const databaseAdapter =
-  process.env.NODE_ENV === "development"
-    ? drizzleAdapter(db, {
-        provider: "pg",
-        schema: {
-          user: schema.users,
-          session: schema.sessions,
-          account: schema.accounts,
-          verification: schema.verifications,
-        },
-      })
-    : {
-        // ⚡ Minimal HTTPS adapter implementing required methods
-        async findUserByEmail(email: string) {
-          const { data, error } = await supabase
-            .from("auth_users")
-            .select("*")
-            .eq("email", email)
-            .maybeSingle();
-          if (error) throw error;
-          return data;
-        },
-        async insertUser(user: any) {
-          const { data, error } = await supabase
-            .from("auth_users")
-            .insert(user)
-            .select()
-            .maybeSingle();
-          if (error) throw error;
-          return data;
-        },
-        async findSessionByToken(token: string) {
-          const { data, error } = await supabase
-            .from("auth_sessions")
-            .select("*")
-            .eq("token", token)
-            .maybeSingle();
-          if (error) throw error;
-          return data;
-        },
-        async insertSession(session: any) {
-          const { data, error } = await supabase
-            .from("auth_sessions")
-            .insert(session)
-            .select()
-            .maybeSingle();
-          if (error) throw error;
-          return data;
-        },
-        async deleteSession(token: string) {
-          const { error } = await supabase
-            .from("auth_sessions")
-            .delete()
-            .eq("token", token);
-          if (error) throw error;
-          return true;
-        },
-        // Add placeholders so Better Auth doesn’t fail init
-        async findUserById() {
-          return null;
-        },
-        async updateUser() {
-          return null;
-        },
-        async findAccountByProvider() {
-          return null;
-        },
-        async insertAccount() {
-          return null;
-        },
-        async findVerification() {
-          return null;
-        },
-        async insertVerification() {
-          return null;
-        },
-        async deleteVerification() {
-          return null;
-        },
-      };
-
-// ---------- Initialize Better Auth ----------
 export const auth = betterAuth({
-  database: databaseAdapter,
+  baseURL: process.env.BETTER_AUTH_URL ?? BASE_URL,
 
+  /* ---------- Database (Drizzle + Supabase) ---------- */
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema: {
+      user: schema.users,
+      session: schema.sessions,
+      account: schema.accounts,
+      verification: schema.verifications,
+    },
+  }),
+
+  /* ---------- Auth Settings ---------- */
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
   },
 
-  cookies: {
-    secure: process.env.NODE_ENV === "production",
-  },
+  /* ---------- Email Verification ---------- */
+  emailVerification: {
+    sendOnSignUp: true,
+    sendOnSignIn: false,
+    requireVerificationBeforeSignIn: true,
 
-  tokens: {
-    accessTokenExpiresIn: 1000 * 60 * 60 * 24 * 7, // 7 days
-  },
+    async sendVerificationEmail({ user, url }) {
+      const verifyUrl = url.startsWith("http")
+        ? url
+        : new URL(url, BASE_URL).toString();
 
-  user: {
-    fields: {
-      name: "name",
-      email: "email",
-      image: "image",
+      try {
+        await resend.emails.send({
+          from: "Pages & Peace <hello@pagesandpeace.co.uk>",
+          to: user.email,
+          subject: "Confirm your email address ☕",
+          html: `
+            <div style="background:#FAF6F1;padding:32px;font-family:Montserrat,Arial,sans-serif;color:#111;">
+              <div style="text-align:center;margin-bottom:24px;">
+                <img src="https://pagesandpeace.co.uk/logo.png" alt="Pages & Peace" style="width:80px;height:auto;margin-bottom:16px;" />
+                <h2 style="margin:0;">Welcome to Pages & Peace 📚☕</h2>
+              </div>
+              <p style="text-align:center;font-size:16px;line-height:1.5;">
+                Please confirm your email address to activate your account.
+              </p>
+              <p style="text-align:center;margin-top:32px;">
+                <a href="${verifyUrl}"
+                  style="background:#5DA865;color:#FAF6F1;text-decoration:none;
+                  padding:14px 28px;border-radius:8px;font-weight:600;
+                  display:inline-block;">Verify My Email</a>
+              </p>
+              <div style="text-align:center;margin-top:40px;font-size:12px;color:#555;">
+                <p>If you didn’t create this account, you can safely ignore this email.</p>
+                <p>© ${new Date().getFullYear()} Pages & Peace. All rights reserved.</p>
+              </div>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error("❌ Failed to send verification email:", err);
+      }
+    },
+
+    async afterEmailVerification(user) {
+      console.log(`✅ ${user.email} verified successfully!`);
     },
   },
+
+  /* ---------- Cookies ---------- */
+  cookies: {
+    sessionToken: {
+      name: "auth_session",
+      options: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      },
+    },
+  },
+
+  /* ---------- Advanced ---------- */
+  advanced: {
+    database: {
+      generateId: () => uuidv4(),
+    },
+  },
+
+  /* ---------- Plugins ---------- */
+  plugins: [nextCookies()],
 });
